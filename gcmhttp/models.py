@@ -4,7 +4,7 @@ from django.contrib.contenttypes import generic
 
 class GCMessage(models.Model):
 	message_ref = models.CharField(max_length=100) #Only used as a reference, will not be sent in the message
-	collapse_key = models.CharField(max_length=15)
+	collapse_key = models.CharField(max_length=255,blank=True,null=True) # Additional info here http://developer.android.com/google/gcm/adv.html#collapsible
 	delay_while_idle = models.BooleanField(default=False)
 	time_to_live = models.IntegerField(null=False,default= (4 * 7 * 24 * 60 * 60 )) # Four weeks
 	restricted_package_name = models.CharField(max_length=150,blank=True)
@@ -12,9 +12,9 @@ class GCMessage(models.Model):
 	has_data = models.BooleanField(default=False)
 	
 	# ContentType Generic relations
-	content_type = models.ForeignKey(ContentType,null=True,blank=True)
-	object_id = models.PositiveIntegerField(null=True,blank=True)
-	content_object = generic.GenericForeignKey('content_type','object_id')
+	gcm_data_type = models.ForeignKey(ContentType,null=True,blank=True)
+	gcm_data_id = models.PositiveIntegerField(null=True,blank=True)
+	gcm_data = generic.GenericForeignKey('gcm_data_type','gcm_data_id')
 
 	# Test request without sending message
 	dry_run = models.BooleanField(default=False)
@@ -39,6 +39,9 @@ class GCMData1(models.Model):
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return self.payload_text
+	def to_dict(self):
+		data_dict = {"payload_text":self.payload_text}
+		return data_dict
 
 class GCMData2(models.Model):
 	# String fields are recomneded by google, since the values will be converted to strings in the GCM server 
@@ -48,6 +51,9 @@ class GCMData2(models.Model):
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return self.value+" : "+self.func
+	def to_dict(self):
+		data_dict = {"value":self.value,"func":self.func}
+		return data_dict
 
 class MsgQueue(models.Model):
 	gcuser = models.ForeignKey(GCUser)
