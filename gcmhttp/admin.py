@@ -3,7 +3,7 @@ from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
 
 
 class GCMessageAdmin(admin.ModelAdmin):
-	list_display = ['message_ref', 'content_type']
+	list_display = ['message_ref', 'gcm_data_type']
 	ordering = ['message_ref']
 	actions = ['push_to_all']
 
