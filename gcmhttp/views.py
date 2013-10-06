@@ -1,17 +1,13 @@
-from django.http import HttpResponse
 from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
-import json
-import urllib,urllib2
+from django.http import HttpResponse
 from django.db import transaction
 from django.conf import settings
 from constants import *
+import urllib,urllib2
 import logging
+import json
 
-# TODO Improve Logging
-DJPLogger = logging.getLogger('view_logger')
-handler1 = logging.FileHandler('usr.log')
-handler1.setLevel(logging.INFO)
-DJPLogger.addHandler(handler1)
+logger = logging.getLogger(__name__)
 
 # Stub
 def registerID(request,regid):
@@ -38,24 +34,27 @@ def testgcmhttp(request):
 				id_list = list(msg_list.values_list('gcuser__registered_id',flat=True))
 
 				# Construct the post data
-				post_data = contructPostData(msg_list[0].gcmessage,id_list)
+				post_jsondata = json.dumps(contructPostData(msg_list[0].gcmessage,id_list))
+				logger.info('Post Data = ' + post_jsondata)
 
 				# post data to google servers wait for reply
-				request = urllib2.Request(settings.GCMURL, json.dumps(post_data), HEADERS)
+				request = urllib2.Request(settings.GCMURL, post_jsondata, HEADERS)
 				try:
 					greply = urllib2.urlopen(request).read()
 				except urllib2.HTTPError, e:
-					DJPLogger.error('HTTPError = ' + str(e.code))
+					logger.error('HTTPError = ' + str(e.code))
 				except urllib2.URLError, e:
-					DJPLogger.error('URLError = ' + str(e.reason))
+					logger.error('URLError = ' + str(e.reason))
 				except httplib.HTTPException, e:
-					DJPLogger.error('HTTPException')
+					logger.error('HTTPException')
 				except Exception:
 					import traceback
-					DJPLogger.error('generic exception: ' + traceback.format_exc())
+					logger.error('generic exception: ' + traceback.format_exc())
 
 				# parse the JSON reply
 				content = json.loads(greply)
+				logger.info('Google Reply = ' + greply)
+
 				multicast_id = content.get(MULTICAST_ID)
 				results = content.get(RESULTS)
 
