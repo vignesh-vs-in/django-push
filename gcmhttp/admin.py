@@ -17,7 +17,7 @@ class GCMessageAdmin(admin.ModelAdmin):
 	push_to_all.short_description = "Push notification to all users"
 
 class MsgQueueAdmin(admin.ModelAdmin):
-	list_display = ['id','gcuser', 'gcmessage' , 'msg_sent','message_id','registration_id','error']
+	list_display = ['id','gcuser', 'gcmessage' ,'multicast_id', 'msg_sent','message_id','registration_id','error']
 	ordering = ['-id']
 
 class GCUserAdmin(admin.ModelAdmin):
