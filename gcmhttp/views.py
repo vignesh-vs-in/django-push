@@ -1,4 +1,5 @@
 from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
+from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from django.db import transaction
 from django.conf import settings
@@ -10,8 +11,12 @@ import json
 logger = logging.getLogger(__name__)
 
 # Stub
-def registerID(request,regid):
-	return HttpResponse("Success")
+@csrf_exempt
+def registeruser(request):
+	reg_id = request.POST['reg_id']
+	gcuser = GCUser(registered_id=reg_id)
+	gcuser.save()
+	return HttpResponse(json.dumps({"status":"success"}))
 
 # Stub move test code elsewhere
 # http://localhost:8900/gcmhttp/test
@@ -21,7 +26,7 @@ def testgcmhttp(request):
 
 	with transaction.commit_on_success():
 
-		uniquemsgs = MsgQueue.objects.all().filter(msg_sent=True).values_list('gcmessage',flat=True).distinct()
+		uniquemsgs = MsgQueue.objects.all().filter(msg_sent=False).values_list('gcmessage',flat=True).distinct()
 
 		for uniquemsgid in uniquemsgs:
 
