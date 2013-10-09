@@ -67,7 +67,7 @@ class MsgQueue(models.Model):
 	def was_published_recently(self):
 		return self.date_inserted >= timezone.now() - datetime.timedelta(days=1)
 	def __unicode__(self):
-		return self.gcuser.registered_id + ":" + self.gcmessage.collapse_key 
+		return self.gcuser.registered_id + ":" + self.gcmessage.message_ref 
 
 # Add Data tables as neccessary in the below format
 # class GCMData2(models.Model):
