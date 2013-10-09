@@ -1,7 +1,7 @@
 Django Push
 ===========
 
-Django Push is a Push notification server enabled for GCM.
+Django Push is a Push notification server enabled for APNS and GCM.
 
 
 

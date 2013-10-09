@@ -3,7 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 
 class APNSToken(models.Model):
-	registered_id = models.CharField(max_length=64,null=False,unique=True)
+	token = models.CharField(max_length=64,null=False,unique=True)
 	expired = models.BooleanField(default=False)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
@@ -19,17 +19,20 @@ class APNSAlert(models.Model):
 	loc_args = models.CharField(max_length=255,null=True,blank=True)
 	launch_image = models.CharField(max_length=255,null=True,blank=True)
 	def __unicode__(self):
-		return str(self.body)
+		return self.body
 		
 class APNSAPSPayload(models.Model):
 	payload_ref = models.CharField(max_length=127)
 	alert = models.ForeignKey(APNSAlert)
-	badge = models.IntegerField()
+	badge = models.IntegerField(default=0)
 	sound = models.CharField(max_length=50,null=True,blank=True)
-	content_available = models.IntegerField()
+	content_available = models.IntegerField(default=0)
 	date_inserted = models.DateTimeField(auto_now_add=True)
+	def to_dict(self):
+		data_dict = {"aps":{"alert":self.alert.body}}
+		return data_dict
 	def __unicode__(self):
-		return str(self.payload_ref)
+		return self.payload_ref
 
 class APNSMessage(models.Model):
 	message_ref = models.CharField(max_length=127)
@@ -43,7 +46,7 @@ class APNSMessage(models.Model):
 
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
-		return str(self.id+":"+self.aps_payload.payload_ref)
+		return str(self.id)+":"+self.aps_payload.payload_ref
 
 class APNSData1(models.Model):
 	value1 = models.CharField(max_length=15)
@@ -55,11 +58,11 @@ class APNSData1(models.Model):
 		return data_dict
 
 class MsgQueue(models.Model):
-	token = models.ForeignKey(APNSToken)
-	message = models.ForeignKey(APNSMessage)
+	apnstoken = models.ForeignKey(APNSToken)
+	apnsmessage = models.ForeignKey(APNSMessage)
 	msg_sent = models.BooleanField(default=False)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def was_published_recently(self):
 		return self.date_inserted >= timezone.now() - datetime.timedelta(days=1)
 	def __unicode__(self):
-		return self.message.message_ref + ":" + self.token.id 
+		return self.apnsmessage.message_ref + ":" + str(self.apnstoken.id)
