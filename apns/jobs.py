@@ -31,7 +31,7 @@ def getPacket(deviceToken,payload):
 	packet = struct.pack(packetFormat,command,len(frame)) + frame 
 	return packet
 
-def testapns():
+def pushapns():
 	# Use key and cert to connect to apple push server
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 

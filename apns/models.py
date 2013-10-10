@@ -61,6 +61,7 @@ class MsgQueue(models.Model):
 	apnstoken = models.ForeignKey(APNSToken)
 	apnsmessage = models.ForeignKey(APNSMessage)
 	msg_sent = models.BooleanField(default=False)
+	error = models.CharField(max_length=255,blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def was_published_recently(self):
 		return self.date_inserted >= timezone.now() - datetime.timedelta(days=1)

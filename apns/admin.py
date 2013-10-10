@@ -15,9 +15,25 @@ class APNSMessageAdmin(admin.ModelAdmin):
 
 	push_to_all.short_description = "Push notification to all tokens"
 
-admin.site.register(APNSToken)
+class APNSTokenAdmin(admin.ModelAdmin):
+	list_display = ['id','expired']
+	ordering = ['-id']
+
+class APNSAPSPayloadAdmin(admin.ModelAdmin):
+	list_display = ['id','payload_ref','alert']
+	ordering = ['-id']
+
+class APNSAlertAdmin(admin.ModelAdmin):
+	list_display = ['body','has_data']
+	ordering = ['-id']
+
+class MsgQueueAdmin(admin.ModelAdmin):
+	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent', 'error']
+	ordering = ['-id']
+
+admin.site.register(APNSToken,APNSTokenAdmin)
 admin.site.register(APNSAlert)
-admin.site.register(APNSAPSPayload)
+admin.site.register(APNSAPSPayload,APNSAPSPayloadAdmin)
 admin.site.register(APNSMessage,APNSMessageAdmin)
 admin.site.register(APNSData1)
-admin.site.register(MsgQueue)
+admin.site.register(MsgQueue,MsgQueueAdmin)

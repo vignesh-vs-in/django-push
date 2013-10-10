@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from constants import *
 
 class GCMessage(models.Model):
 	message_ref = models.CharField(max_length=100) #Only used as a reference, will not be sent in the message
@@ -20,6 +21,27 @@ class GCMessage(models.Model):
 	dry_run = models.BooleanField(default=False)
 
 	date_inserted = models.DateTimeField(auto_now_add=True)
+
+	def to_dict(self):
+		data_dict = {}
+		if self.has_data:
+			payloaddata = self.gcm_data.to_dict()
+			data_dict.update({DATA:payloaddata})
+
+		if self.collapse_key:
+			data_dict.update({COLLAPSE_KEY:self.collapse_key})
+
+		if self.time_to_live!=(4 * 7 * 24 * 60 * 60):
+			data_dict.update({TIME_TO_LIVE: self.time_to_live})
+
+		if self.delay_while_idle == True:
+			data_dict.update({DELAY_WHILE_IDLE: self.delay_while_idle})
+			
+		if self.dry_run == True:
+			data_dict.update({DRY_RUN: self.dry_run})
+
+		return data_dict
+
 	def __unicode__(self):
 		return self.message_ref
 
