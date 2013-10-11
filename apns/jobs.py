@@ -1,6 +1,10 @@
-import socket, ssl, pprint, struct, time, binascii, random, json, os
+import socket, ssl, pprint, struct, time, binascii, random, json, os, logging
 from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue
 from django.conf import settings
+from django.db import transaction
+from apns.APNSSocket import APNSSocket
+
+logger = logging.getLogger(__name__)
 
 def getItemFor(itemNumber,data):
 	return struct.pack("!BH%ds"%(len(data)),itemNumber,len(data),data)
@@ -11,11 +15,10 @@ def getItemWithLengthFor(itemNumber,data,dataLength):
 	else:
 		return struct.pack("!BHB",itemNumber,dataLength,data)
 
-def getPacket(deviceToken,payload):
+def getPacket(deviceToken,payload,identifier):
 	command=2
 	expiry = time.time()
 	deviceTokenHex = binascii.unhexlify(deviceToken)
-	identifier = random.randrange(256*256)
 	priority = 10
 
 	tokenItem = getItemFor(1,deviceTokenHex)
@@ -32,22 +35,23 @@ def getPacket(deviceToken,payload):
 	return packet
 
 def pushapns():
-	# Use key and cert to connect to apple push server
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	apnssock = APNSSocket() 
+	apnssock.connect()
 
-	ssl_sock = ssl.wrap_socket(s,keyfile=os.path.join(settings.SITE_ROOT, "APNSClientPushKey.pem"),
-		certfile=os.path.join(settings.SITE_ROOT,"APNSClientPushCert.pem"),
-		server_side=False,
-		do_handshake_on_connect=True)
+	logger.info('Connected to APNS')
 
-	ssl_sock.connect(('gateway.sandbox.push.apple.com', 2195))
+	with transaction.commit_on_success():
 
-	msgqueue = MsgQueue.objects.all().filter(msg_sent=False)
+		msgqueue = MsgQueue.objects.all().filter(msg_sent=False).order_by('id')
 
-	for entry in msgqueue:
-		payload = json.dumps(entry.apnsmessage.aps_payload.to_dict())
-		deviceToken = entry.apnstoken.token
-		totalBytes = ssl_sock.write(getPacket(deviceToken,payload))
-		# print "totalBytes = %d" %(totalBytes)
-
-	ssl_sock.close()
+		for entry in msgqueue:
+			logger.info('Pushing Msg:' + str(entry.id))
+			payload = json.dumps(entry.apnsmessage.aps_payload.to_dict())
+			deviceToken = entry.apnstoken.token
+			totalBytes = apnssock.apnssend(getPacket(deviceToken,payload,entry.id))
+			entry.msg_sent=True
+			entry.save()
+			# print "totalBytes = %d" %(totalBytes)
+			
+	logger.info('Close APNS Connection')
+	apnssock.close()

@@ -178,6 +178,18 @@ LOGGING = {
             'filename': 'info.log',
             'formatter': 'verbose'
         },
+        'gcminfofile': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'gcminfo.log',
+            'formatter': 'verbose'
+        },
+        'apnsinfofile': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'apnsinfo.log',
+            'formatter': 'verbose'
+        },
     },
     'loggers': {
         'django': {
@@ -196,7 +208,11 @@ LOGGING = {
             'propagate': False,
         },
         'gcmhttp': {
-            'handlers': ['infofile'],
+            'handlers': ['gcminfofile'],
+            'level': 'INFO',
+        },
+        'apns': {
+            'handlers': ['apnsinfofile'],
             'level': 'INFO',
         },
     }
