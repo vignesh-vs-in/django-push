@@ -3,6 +3,7 @@ from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1
 from django.conf import settings
 from django.db import transaction
 from apns.APNSSocket import APNSSocket
+from constants import *
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,32 @@ def pushapns():
 		for entry in msgqueue:
 			logger.info('Pushing Msg:' + str(entry.id))
 			payload = json.dumps(entry.apnsmessage.aps_payload.to_dict())
+
+			# Limit the payload to 256
+			if len(payload) > PAYLOAD_LIMIT:
+				entry.error = PAYLOAD_LIMIT_EXCEEDED
+				entry.msg_sent=True
+				entry.save()
+				continue
+
 			deviceToken = entry.apnstoken.token
-			totalBytes = apnssock.apnssend(getPacket(deviceToken,payload,entry.id))
+			try:
+				totalBytes = apnssock.apnssend(getPacket(deviceToken,payload,entry.id))
+			except RuntimeError:
+				""" 
+				APNS closes connection after receiving the errored packet.
+				Since we push messages in the msgqueue oredered by id, id-1 gives the errored message.
+				"""
+				erroredmsg = MsgQueue.objects.all().get(pk=entry.id-1)
+				erroredmsg.error = MALFORMED_PACKET
+
+				# Re-establish ssl connection
+				apnssock = APNSSocket() 
+				apnssock.connect()
+
 			entry.msg_sent=True
 			entry.save()
 			# print "totalBytes = %d" %(totalBytes)
-			
+
 	logger.info('Close APNS Connection')
 	apnssock.close()
