@@ -6,6 +6,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 	url(r'^gcmhttp/',include('gcmhttp.urls')),
+	url(r'^apns/',include('apns.urls')),
     # Examples:
     # url(r'^$', 'DjangoPush.views.home', name='home'),
     # url(r'^DjangoPush/', include('DjangoPush.foo.urls')),

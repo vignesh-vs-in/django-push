@@ -2,7 +2,7 @@ from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 
-# http://localhost:8900/gcmhttp/registeruser
+# http://localhost/gcmhttp/registeruser
 @csrf_exempt
 def registeruser(request):
 	reg_id = request.POST['reg_id']
