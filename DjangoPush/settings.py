@@ -2,6 +2,15 @@
 import os
 SITE_ROOT = os.path.realpath(os.path.dirname(__file__))
 
+import djcelery
+djcelery.setup_loader()
+BROKER_URL = "amqp://guest:guest@localhost:5672//"
+
+# Manage scheduling from admin panel
+CELERY_RESULT_BACKEND = "database"
+CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
+
+
 GCMURL = 'https://android.googleapis.com/gcm/send'
 
 AUTHORIZATION_KEY = 'Your API Key'
@@ -129,6 +138,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'gcmhttp',
     'apns',
+    'djcelery',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:

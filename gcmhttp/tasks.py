@@ -1,13 +1,19 @@
-from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
+from .models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
 from django.db import transaction
 from django.conf import settings
 from constants import *
 import urllib,urllib2
 import logging
 import json
+from celery import Celery
+from celery.task.schedules import crontab
+from celery.task import periodic_task
 
 logger = logging.getLogger(__name__)
 
+celery = Celery('tasks', broker='amqp://guest@localhost//')
+
+@celery.task(name='Push GCM')
 def pushgcmhttp():
 
 	with transaction.commit_on_success():
@@ -25,7 +31,9 @@ def pushgcmhttp():
 				id_list = list(msg_list.values_list('gcuser__registered_id',flat=True))
 
 				# Construct the post data
-				post_jsondata = json.dumps(msg_list[0].gcmessage.to_dict().update({REGISTRATION_IDS:id_list}))
+				msgdtl = msg_list[0].gcmessage.to_dict()
+				msgdtl.update({REGISTRATION_IDS:id_list})
+				post_jsondata = json.dumps(msgdtl)
 				logger.info('Post Data = ' + post_jsondata)
 
 				# post data to google servers wait for reply
