@@ -7,23 +7,23 @@ Prerequisite
 ============
 
 a) Install Python if you havent yet.
-sudo apt-get install python-setuptools python-dev build-essential
+	sudo apt-get install python-setuptools python-dev build-essential
 
 b) Install or upgrade Django
-pip install django
+	pip install django
 or
-pip install django --upgrade
+	pip install django --upgrade
 
 c) Clone DjangoPush
-git clone https://github.com/vignesh-vs-in/django-push.git
+	git clone https://github.com/vignesh-vs-in/django-push.git
 
 Setup
 =====
 
 1) [Install Celery and RabbitMQ]. Django push uses celery for running async jobs.
 
-	Run Celery tasks with 
-	python manage.py celery beat
+Run Celery tasks with 
+	python manage.py celery worker -B
 
 License
 =======

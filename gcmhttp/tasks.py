@@ -1,13 +1,12 @@
-from .models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
+from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
 from django.db import transaction
 from django.conf import settings
+from celery import Celery
 from constants import *
 import urllib,urllib2
 import logging
 import json
-from celery import Celery
-from celery.task.schedules import crontab
-from celery.task import periodic_task
+
 
 logger = logging.getLogger(__name__)
 

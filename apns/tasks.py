@@ -1,11 +1,14 @@
-import socket, ssl, pprint, struct, time, binascii, random, json, os, logging
 from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue
-from django.conf import settings
-from django.db import transaction
+import socket, ssl, pprint, struct, time, binascii, random, json, os, logging
 from apns.APNSSocket import APNSSocket
+from django.db import transaction
+from django.conf import settings
+from celery import Celery
 from constants import *
 
 logger = logging.getLogger(__name__)
+
+celery = Celery('tasks', broker='amqp://guest@localhost//')
 
 def getItemFor(itemNumber,data):
 	return struct.pack("!BH%ds"%(len(data)),itemNumber,len(data),data)
@@ -35,15 +38,19 @@ def getPacket(deviceToken,payload,identifier):
 	packet = struct.pack(packetFormat,command,len(frame)) + frame 
 	return packet
 
+@celery.task(name='Push APNS')
 def pushapns():
-	apnssock = APNSSocket() 
-	apnssock.connect()
-
-	logger.info('Connected to APNS')
 
 	with transaction.commit_on_success():
 
 		msgqueue = MsgQueue.objects.all().filter(msg_sent=False).order_by('id')
+
+		apnssock = APNSSocket() 
+
+		# Only connect if message queue is not empty
+		if msgqueue:
+			apnssock.connect()
+			logger.info('Connected to APNS')
 
 		for entry in msgqueue:
 			logger.info('Pushing Msg:' + str(entry.id))
