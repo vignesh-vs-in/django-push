@@ -2,6 +2,7 @@
 import os
 SITE_ROOT = os.path.realpath(os.path.dirname(__file__))
 
+# Celery Settings
 import djcelery
 djcelery.setup_loader()
 BROKER_URL = "amqp://guest:guest@localhost:5672//"
@@ -10,12 +11,11 @@ BROKER_URL = "amqp://guest:guest@localhost:5672//"
 CELERY_RESULT_BACKEND = "database"
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 
-
+# GCM HTTP Settings
 GCMURL = 'https://android.googleapis.com/gcm/send'
+GCM_AUTHORIZATION_KEY = 'Your API Key'
+GCM_TEST_ID = 'test id' 
 
-AUTHORIZATION_KEY = 'Your API Key'
-
-TEST_ID = 'dummy test id' 
 
 DEBUG = False
 

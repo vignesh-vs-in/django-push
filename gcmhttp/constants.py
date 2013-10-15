@@ -1,6 +1,6 @@
 from django.conf import settings
 
-HEADERS={"Authorization":settings.AUTHORIZATION_KEY,"Content-Type" : "application/json"}
+HEADERS={"Authorization":settings.GCM_AUTHORIZATION_KEY,"Content-Type" : "application/json"}
 
 REGISTRATION_IDS = 'registration_ids'
 MULTICAST_ID = 'multicast_id'

@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+import json, time, binascii, struct
+from constants import *
 
 class APNSToken(models.Model):
 	token = models.CharField(max_length=64,null=False,unique=True)
@@ -38,6 +40,7 @@ class APNSMessage(models.Model):
 	message_ref = models.CharField(max_length=127)
 	aps_payload = models.ForeignKey(APNSAPSPayload)
 	has_data = models.BooleanField(default=False)
+	priority = models.IntegerField(default=5)
 
 	# ContentType Generic relations
 	apns_data_type = models.ForeignKey(ContentType,null=True,blank=True)
@@ -63,6 +66,43 @@ class MsgQueue(models.Model):
 	msg_sent = models.BooleanField(default=False)
 	error = models.CharField(max_length=255,blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
+
+	def to_packet(self):
+
+		def getItemFor(itemNumber,data):
+			return struct.pack("!BH%ds"%(len(data)),itemNumber,len(data),data)
+
+		def getItemWithLengthFor(itemNumber,data,dataLength):
+			if dataLength == 4:
+				return struct.pack("!BHI",itemNumber,dataLength,data)
+			else:
+				return struct.pack("!BHB",itemNumber,dataLength,data)
+
+		expiry = time.time()
+		deviceTokenHex = binascii.unhexlify(self.apnstoken.token)
+		payload = json.dumps(self.apnsmessage.aps_payload.to_dict())
+		priority = self.apnsmessage.priority
+
+		# Limit the payload to 256
+		if len(payload) > PAYLOAD_LIMIT:
+			self.error = PAYLOAD_LIMIT_EXCEEDED
+			self.msg_sent=True
+			self.save()
+			return None
+
+		tokenItem = getItemFor(1,deviceTokenHex)
+		payloadItem = getItemFor(2,payload)
+
+		identifierItem = getItemWithLengthFor(3,self.id,4)
+		expiryItem = getItemWithLengthFor(4,int(expiry),4)
+		priorityItem = getItemWithLengthFor(5,priority,1)
+
+		frame = tokenItem + payloadItem + identifierItem + expiryItem + priorityItem
+
+		packetFormat = "!BI"
+		packet = struct.pack(packetFormat,APNS_COMMAND,len(frame)) + frame 
+		return packet
+
 	def was_published_recently(self):
 		return self.date_inserted >= timezone.now() - datetime.timedelta(days=1)
 	def __unicode__(self):

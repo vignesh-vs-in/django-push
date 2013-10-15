@@ -1,9 +1,7 @@
 """
-This file demonstrates writing tests using the unittest module. These will pass
-when you run "manage.py test".
-
-Replace this with more appropriate tests for your application.
+These will pass when you run "manage.py test gcmhttp".
 """
+
 import urllib,urllib2,json
 from django.test import TestCase
 from gcmhttp.models import GCMessage, GCUser, GCMData1, GCMData2, MsgQueue
@@ -27,7 +25,7 @@ class ModelTest(TestCase):
 		self.assertEqual(msgdict, jsondict)
 
 	def test_accesstogcm(self):
-		post_data = {REGISTRATION_IDS:[settings.TEST_ID],DRY_RUN:True} 
+		post_data = {REGISTRATION_IDS:[settings.GCM_TEST_ID],DRY_RUN:True} 
 		request = urllib2.Request(settings.GCMURL, json.dumps(post_data), HEADERS)
 		result = urllib2.urlopen(request)
 		reply = result.read()
