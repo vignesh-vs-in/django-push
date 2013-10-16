@@ -21,7 +21,7 @@ def pushapns():
 
 		# Only connect if message queue is not empty
 		if msgqueue:
-			apnssock.connect()
+			apnssock.connect(APNS_SANDBOX)
 			logger.info('Connected to APNS')
 
 		for entry in msgqueue:
@@ -31,7 +31,9 @@ def pushapns():
 				packet = entry.to_packet()
 				if packet:
 					totalBytes = apnssock.apnssend(packet)
+					checkError(apnssock)
 			except RuntimeError:
+				logger.info('APNS Connection closed Runtime Error')
 				""" 
 				APNS closes connection after receiving the errored packet.
 				Since we push messages in the msgqueue oredered by id, id-1 gives the errored message.
@@ -45,7 +47,13 @@ def pushapns():
 
 			entry.msg_sent=True
 			entry.save()
-			# print "totalBytes = %d" %(totalBytes)
 
 	logger.info('Close APNS Connection')
 	apnssock.close()
+
+# TODO account for the delay between data sent and data received
+def checkError(apnssock):
+	err = apnssock.apnsreceive()
+	if err:
+		logger.info('Error msg received')
+		raise RuntimeError("Error Msg Received")

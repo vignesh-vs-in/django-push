@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 
 class APNSSocket(object):
 	def __init__(self, ssl_sock=None):
+		logger.info('Initialise APNSSocket')
 		if ssl_sock is None:
 			# Use key and cert to connect to apple push server
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,13 +16,14 @@ class APNSSocket(object):
 		else:
 			self.ssl_sock = ssl_sock
 
-	def connect(self):
-		self.ssl_sock.connect(('gateway.sandbox.push.apple.com', 2195))
-		logger.info('Socket Connect')
+	def connect(self,gateway):
+		self.ssl_sock.connect((gateway, 2195))
+		self.ssl_sock.setblocking(0)
+		# logger.info('Socket Connect')
 
 	def close(self):
 		self.ssl_sock.close()
-		logger.info('Socket Close')
+		# logger.info('Socket Close')
 
 	def apnssend(self, msg):
 		logger.info('Send data of len:' +  str(len(msg)))
@@ -35,10 +37,8 @@ class APNSSocket(object):
 
 	def apnsreceive(self):
 		MSGLEN = 6
-		msg = ''
-		while len(msg) < MSGLEN:
-			chunk = self.ssl_sock.recv(MSGLEN-len(msg))
-			if chunk == '':
-				raise RuntimeError("socket connection broken")
-			msg = msg + chunk
-		return msg0
+		try:
+			msg = self.ssl_sock.recv(MSGLEN)
+		except socket.error:
+			return None
+		return msg
