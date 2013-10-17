@@ -31,8 +31,10 @@ class APNSSocket(object):
 		while totalsent < len(msg):
 			sent = self.ssl_sock.send(msg[totalsent:])
 			if sent == 0:
+				logger.error('Error sending message:'+msg)
 				raise RuntimeError("socket connection broken")
 			totalsent = totalsent + sent
+		return totalsent
 		logger.info('Sent data of len:' + str(totalsent))
 
 	def apnsreceive(self):

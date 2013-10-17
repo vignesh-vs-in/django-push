@@ -30,6 +30,15 @@ class APNSAlertAdmin(admin.ModelAdmin):
 class MsgQueueAdmin(admin.ModelAdmin):
 	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent', 'error']
 	ordering = ['-id']
+	actions = ['update_sent_false','update_sent_true']
+
+	def update_sent_false(self, request, queryset):
+		queryset.update(msg_sent=False)
+	update_sent_false.short_description = "Update msg_sent to False"
+
+	def update_sent_true(self, request, queryset):
+		queryset.update(msg_sent=True)
+	update_sent_true.short_description = "Update msg_sent to True"
 
 admin.site.register(APNSToken,APNSTokenAdmin)
 admin.site.register(APNSAlert)
