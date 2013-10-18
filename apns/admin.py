@@ -34,6 +34,7 @@ class MsgQueueAdmin(admin.ModelAdmin):
 
 	def update_sent_false(self, request, queryset):
 		queryset.update(msg_sent=False)
+		queryset.update(error=None)
 	update_sent_false.short_description = "Update msg_sent to False"
 
 	def update_sent_true(self, request, queryset):

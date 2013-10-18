@@ -16,9 +16,11 @@ class APNSSocket(object):
 		else:
 			self.ssl_sock = ssl_sock
 
-	def connect(self,gateway):
-		self.ssl_sock.connect((gateway, 2195))
-		self.ssl_sock.setblocking(0)
+	def connect(self,gateway,blocking=True):
+		url,port = gateway
+		self.ssl_sock.connect((url, port))
+		if blocking:
+			self.ssl_sock.setblocking(0)
 		# logger.info('Socket Connect')
 
 	def close(self):
@@ -37,10 +39,9 @@ class APNSSocket(object):
 		return totalsent
 		logger.info('Sent data of len:' + str(totalsent))
 
-	def apnsreceive(self):
-		MSGLEN = 6
+	def apnsreceive(self,msglen=6):
 		try:
-			msg = self.ssl_sock.recv(MSGLEN)
+			msg = self.ssl_sock.recv(msglen)
 		except socket.error:
 			return None
 		return msg
