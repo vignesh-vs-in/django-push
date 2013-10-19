@@ -7,6 +7,7 @@ from constants import *
 class APNSToken(models.Model):
 	token = models.CharField(max_length=64,null=False,unique=True)
 	expired = models.BooleanField(default=False)
+	time_expired = models.DateTimeField(blank=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return str(self.id)
@@ -66,6 +67,8 @@ class MsgQueue(models.Model):
 	msg_sent = models.BooleanField(default=False)
 	error = models.CharField(max_length=255,blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
+	pickedup = models.BooleanField(default=False)
+	task = models.CharField(max_length=255,blank=True,null=True)
 
 	def to_packet(self):
 

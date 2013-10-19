@@ -61,7 +61,7 @@ def pushMsgToApns(msgqueue,apnssock):
 
 	"""
 	Sleep few second(s) to check for any errors at the end of a transmission.
-	This wait is needed as there is a delay between data sent and data recieved from APNS gateways
+	This wait is needed as there is a delay between the data sent and data recieved from APNS gateways
 	"""
 	time.sleep(5)
 	errIdentifier = checkError(apnssock)
@@ -71,32 +71,57 @@ def pushMsgToApns(msgqueue,apnssock):
 
 	return entryidsent
 
-# TODO account for the delay between data sent and data received
 def checkError(apnssock):
 	err = apnssock.apnsreceive()
+	errIdentifier = 0	
 	if err:
 		# Decode 6 Bytes of error information
 		errCommand = int(binascii.hexlify(err[0]),16)
 		errCode = int(binascii.hexlify(err[1]),16)
 		errIdentifier = int(binascii.hexlify(err[2:]),16)
 		logger.info('Error message received for ID: %d' %(errIdentifier))
-		if errCode == 8:
-			errMsg  = MsgQueue.objects.get(id=errIdentifier)
+		errMsg  = MsgQueue.objects.get(id=errIdentifier)
+
+		if errCode == 0:
+			errMsg.error = NO_ERRORS_ENCOUNTERED
+		elif errCode == 1:
+			errMsg.error = PROCESSING_ERROR
+		elif errCode == 2:
+			errMsg.error = MISSING_DEVICE_TOKEN
+		elif errCode == 3:
+			errMsg.error = MISSING_TOPIC
+		elif errCode == 4:
+			errMsg.error = MISSING_PAYLOAD
+		elif errCode == 5:
+			errMsg.error = INVALID_TOKEN_SIZE
+		elif errCode == 6:
+			errMsg.error = INVALID_TOPIC_SIZE
+		elif errCode == 7:
+			errMsg.error = INVALID_PAYLOAD_SIZE
+		elif errCode == 8:
 			errMsg.error = INVALID_TOKEN
-			errMsg.msg_sent=True
-			errMsg.save()
-			# MsgQueue.objects.all().filter(id__gt=errIdentifier).update(msg_sent=False)
-			return errIdentifier
-	return 0
+		elif errCode == 10:
+			errMsg.error = SHUTDOWN
+		elif errCode > 10:
+			errMsg.error = NONE_UNKNOWN
+
+		errMsg.msg_sent=True
+		errMsg.save()
+
+	return errIdentifier
 
 # Schedule queryfeedback dailiy to get the list of device tokens that is expired.
 @task(name='Query APNS Feedback')
 def queryfeedback():
 	pass
-	# logger.info('Running Feedback Task:' + str(current_task.request.id))
-	# apnssock = APNSSocket()
-	# apnssock.connect(APNS_FEEDBACK_SANDBOX)
-	# msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
-	# while msg:
-	# 	logger.info('Feedback Msg received' + msg)
-	# 	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+	logger.info('Running Feedback Task:' + str(current_task.request.id))
+	apnssock = APNSSocket()
+	apnssock.connect(APNS_FEEDBACK_SANDBOX)
+	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+	while msg:
+		logger.info('Feedback Msg received' + msg)
+		msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+		# if msg:
+		# 	expired_time = msg[0:4]
+		# 	token_length = msg[5:6]
+		# 	token = [7:]
