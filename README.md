@@ -27,10 +27,6 @@ Setup
 
 1) [Install Celery and RabbitMQ]. Django push uses celery for running async jobs.
 
-Run Celery tasks with 
-
-	python manage.py celery worker -B
-
 APNS Setup
 ==========
 
@@ -56,6 +52,14 @@ GCM Setup
 
 Set your AUTHORIZATION_KEY in settings.py.
 
+Additional Notes
+================
+
+Run Celery tasks with beat option.
+
+	python manage.py celery worker -B
+
+Crontabs or task intervals can be configured from admin panel.
 
 License
 =======
