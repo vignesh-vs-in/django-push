@@ -16,6 +16,7 @@ GCMURL = 'https://android.googleapis.com/gcm/send'
 GCM_AUTHORIZATION_KEY = 'Your API Key'
 GCM_TEST_ID = 'test id' 
 
+APNS_TEST_ID = 'test id' 
 
 DEBUG = False
 

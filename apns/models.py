@@ -7,7 +7,7 @@ from constants import *
 class APNSToken(models.Model):
 	token = models.CharField(max_length=64,null=False,unique=True)
 	expired = models.BooleanField(default=False)
-	time_expired = models.DateTimeField(blank=True)
+	time_expired = models.DateTimeField(blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return str(self.id)

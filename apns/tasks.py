@@ -13,12 +13,17 @@ celery = Celery('tasks', broker='amqp://guest@localhost//')
 
 @task(name='Push APNS',base=APNSTask)
 def pushapns():
-	logger.info('Running Push APNS Task:'+ str(current_task.request.id))
+	logger.info('Running Push APNS Task:'+ current_task.request.id)
 	with transaction.commit_on_success():
 
-		msgqueue = MsgQueue.objects.all().filter(msg_sent=False).order_by('id')
+		# Updated current task id in msgs with sent flag as False and upto MSG_PER_TASK_LIMIT
+		msgidbatch = MsgQueue.objects.filter(msg_sent=False,pickedup=False).order_by('id').values('pk')[:MSG_PER_TASK_LIMIT]
+		MsgQueue.objects.filter(pk__in=msgidbatch).update(pickedup=True,task=current_task.request.id)
 
-		# Only proceed if message queue is not empty
+		# Fetch msgs for current task 
+		msgqueue = MsgQueue.objects.all().filter(msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
+
+		# Proceed if message queue is not empty
 		if msgqueue:
 			# startseq = msgqueue[0].id
 			endseq = msgqueue[len(msgqueue)-1].id
@@ -28,7 +33,7 @@ def pushapns():
 			while endseq > pushedUptoSeq:
 				# Reopen APNS Connection after encountering an error.
 				current_task.reconnect()
-				msgqueue = MsgQueue.objects.all().filter(id__gt=pushedUptoSeq,id__lte=endseq).order_by('id')
+				msgqueue = MsgQueue.objects.all().filter(id__gt=pushedUptoSeq,id__lte=endseq,msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
 				if msgqueue:
 					pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
 					logger.info('Iterate Pushed Upto : %d of %d' %(pushedUptoSeq,endseq))
@@ -38,13 +43,14 @@ def pushapns():
 	logger.info('Completed Push APNS Task:'+ str(current_task.request.id))
 
 def pushMsgToApns(msgqueue,apnssock):
-	entryidsent = 0
+	msgqueueIdPushed = 0
+
 	for entry in msgqueue:
 		logger.info('Pushing Msg:' + str(entry.id))
 		try:
 			packet = entry.to_packet()
 			if packet:
-				entryidsent = entry.id
+				msgqueueIdPushed = entry.id
 				apnssock.apnssend(packet)
 				# Return the error idendifier. Apple ignores all the ids sent after the error identifier
 				errIdentifier = checkError(apnssock)
@@ -63,13 +69,18 @@ def pushMsgToApns(msgqueue,apnssock):
 	Sleep few second(s) to check for any errors at the end of a transmission.
 	This wait is needed as there is a delay between the data sent and data recieved from APNS gateways
 	"""
-	time.sleep(5)
-	errIdentifier = checkError(apnssock)
-	if errIdentifier!=0:
-		logger.info('Delayed Error')
-		return errIdentifier
 
-	return entryidsent
+	timespent = 0
+	while timespent < TOTAL_GATEWAY_WAIT_TIME:
+		errIdentifier = checkError(apnssock)
+		if errIdentifier!=0:
+			logger.info('Delayed Error')
+			return errIdentifier
+
+		time.sleep(GATEWAY_WAIT_TIME)
+		timespent = timespent + GATEWAY_WAIT_TIME
+
+	return msgqueueIdPushed
 
 def checkError(apnssock):
 	err = apnssock.apnsreceive()
@@ -113,7 +124,7 @@ def checkError(apnssock):
 # Schedule queryfeedback dailiy to get the list of device tokens that is expired.
 @task(name='Query APNS Feedback')
 def queryfeedback():
-	pass
+	return
 	logger.info('Running Feedback Task:' + str(current_task.request.id))
 	apnssock = APNSSocket()
 	apnssock.connect(APNS_FEEDBACK_SANDBOX)
