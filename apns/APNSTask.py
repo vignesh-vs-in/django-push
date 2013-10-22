@@ -10,10 +10,15 @@ class APNSTask(Task):
 	_sock = None
 
 	def __init__(self,gateway=None):
+		logger.info('Initialize APNSTask')
 		if gateway is None:
 			self.gateway = APNS_GATEWAY_SANDBOX
 		else:
 			self.gateway = gateway
+		if self._sock is None:		
+			self._sock = APNSSocket()
+			self._sock.connect(self.gateway)
+			logger.info('Connected to APNS in __init__')
 
 	@property
 	def sock(self):

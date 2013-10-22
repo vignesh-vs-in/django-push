@@ -12,40 +12,49 @@ logger = logging.getLogger(__name__)
 celery = Celery('tasks', broker='amqp://guest@localhost//')
 
 @task(name='Push APNS',base=APNSTask)
-def pushapns():
+def pushapns(tokenlist=None,msglist=None):
 	logger.info('Running Push APNS Task:'+ current_task.request.id)
 	with transaction.commit_on_success():
-
-		# Updated current task id in msgs with sent flag as False and upto MSG_PER_TASK_LIMIT
-		msgidbatch = MsgQueue.objects.filter(msg_sent=False,pickedup=False).order_by('id').values('pk')[:MSG_PER_TASK_LIMIT]
-		MsgQueue.objects.filter(pk__in=msgidbatch).update(pickedup=True,task=current_task.request.id)
-
 		# Fetch msgs for current task 
-		msgqueue = MsgQueue.objects.all().filter(msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
+		for msg in msglist:
 
-		# Proceed if message queue is not empty
-		if msgqueue:
-			# startseq = msgqueue[0].id
-			endseq = msgqueue[len(msgqueue)-1].id
-			pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
-			logger.info('Initially Pushed %d of %d'% (pushedUptoSeq,endseq))
+# @task(name='Push APNS',base=APNSTask)
+# def pushapns():
+# 	logger.info('Running Push APNS Task:'+ current_task.request.id)
 
-			while endseq > pushedUptoSeq:
-				# Reopen APNS Connection after encountering an error.
-				current_task.reconnect()
-				msgqueue = MsgQueue.objects.all().filter(id__gt=pushedUptoSeq,id__lte=endseq,msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
-				if msgqueue:
-					pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
-					logger.info('Iterate Pushed Upto : %d of %d' %(pushedUptoSeq,endseq))
-				else:
-					break
+# 	# Updated current task id in msgs with sent flag as False and upto MSG_PER_TASK_LIMIT
+# 	msgidbatch = MsgQueue.objects.filter(msg_sent=False,pickedup=False).order_by('id').values_list('pk',flat=True)[:MSG_PER_TASK_LIMIT]
+# 	MsgQueue.objects.filter(pk__in=list(msgidbatch)).update(pickedup=True,task=current_task.request.id)
 
-	logger.info('Completed Push APNS Task:'+ str(current_task.request.id))
+# 	with transaction.commit_on_success():
+
+# 		# Fetch msgs for current task 
+# 		msgqueue = MsgQueue.objects.all().filter(msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
+
+# 		# Proceed if message queue is not empty
+# 		if msgqueue:
+# 			# startseq = msgqueue[0].id
+# 			endseq = msgqueue[len(msgqueue)-1].id
+# 			pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
+# 			logger.info('Initially Pushed %d of %d'% (pushedUptoSeq,endseq))
+
+# 			while endseq > pushedUptoSeq:
+# 				# Reopen APNS Connection after encountering an error.
+# 				current_task.reconnect()
+# 				msgqueue = MsgQueue.objects.all().filter(id__gt=pushedUptoSeq,id__lte=endseq,msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
+# 				if msgqueue:
+# 					pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
+# 					logger.info('Iterate Pushed Upto : %d of %d' %(pushedUptoSeq,endseq))
+# 				else:
+# 					break
+
+# 	logger.info('Completed Push APNS Task:'+ str(current_task.request.id))
 
 def pushMsgToApns(msgqueue,apnssock):
 	msgqueueIdPushed = 0
 
 	for entry in msgqueue:
+		# time.sleep(50)
 		logger.info('Pushing Msg:' + str(entry.id))
 		try:
 			packet = entry.to_packet()
