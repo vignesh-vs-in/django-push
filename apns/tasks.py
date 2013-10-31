@@ -1,4 +1,4 @@
-from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue
+from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue,PreTaskQueue
 import socket, ssl, pprint, struct, time, binascii, json, os, logging
 from apns.APNSSocket import APNSSocket
 from apns.APNSTask import APNSTask
@@ -9,87 +9,43 @@ from apns.constants import *
 
 logger = logging.getLogger(__name__)
 
-celery = Celery('tasks', broker='amqp://guest@localhost//')
+# ToDo Work on reporting and failures at end
+@task(name='Push APNS Packet',base=APNSTask)
+def pushapnspacket(packetNidentifier=(None,0)):
+	packet,identifier = packetNidentifier
+	logger.info('Running Push APNS Task: %s for id %d' % (current_task.request.id,identifier))
+	# logger.info('Req Dtl:'+str(current_task.request))
 
-@task(name='Push APNS',base=APNSTask)
-def pushapns(tokenlist=None,msglist=None):
-	logger.info('Running Push APNS Task:'+ current_task.request.id)
-	with transaction.commit_on_success():
-		# Fetch msgs for current task 
-		for msg in msglist:
-
-# @task(name='Push APNS',base=APNSTask)
-# def pushapns():
-# 	logger.info('Running Push APNS Task:'+ current_task.request.id)
-
-# 	# Updated current task id in msgs with sent flag as False and upto MSG_PER_TASK_LIMIT
-# 	msgidbatch = MsgQueue.objects.filter(msg_sent=False,pickedup=False).order_by('id').values_list('pk',flat=True)[:MSG_PER_TASK_LIMIT]
-# 	MsgQueue.objects.filter(pk__in=list(msgidbatch)).update(pickedup=True,task=current_task.request.id)
-
-# 	with transaction.commit_on_success():
-
-# 		# Fetch msgs for current task 
-# 		msgqueue = MsgQueue.objects.all().filter(msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
-
-# 		# Proceed if message queue is not empty
-# 		if msgqueue:
-# 			# startseq = msgqueue[0].id
-# 			endseq = msgqueue[len(msgqueue)-1].id
-# 			pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
-# 			logger.info('Initially Pushed %d of %d'% (pushedUptoSeq,endseq))
-
-# 			while endseq > pushedUptoSeq:
-# 				# Reopen APNS Connection after encountering an error.
-# 				current_task.reconnect()
-# 				msgqueue = MsgQueue.objects.all().filter(id__gt=pushedUptoSeq,id__lte=endseq,msg_sent=False,pickedup=True,task=current_task.request.id).order_by('id')
-# 				if msgqueue:
-# 					pushedUptoSeq = pushMsgToApns(msgqueue,current_task.sock)
-# 					logger.info('Iterate Pushed Upto : %d of %d' %(pushedUptoSeq,endseq))
-# 				else:
-# 					break
-
-# 	logger.info('Completed Push APNS Task:'+ str(current_task.request.id))
-
-def pushMsgToApns(msgqueue,apnssock):
-	msgqueueIdPushed = 0
-
-	for entry in msgqueue:
-		# time.sleep(50)
-		logger.info('Pushing Msg:' + str(entry.id))
+	if packet is not None:
+		logger.info('Packet None')
 		try:
-			packet = entry.to_packet()
-			if packet:
-				msgqueueIdPushed = entry.id
-				apnssock.apnssend(packet)
-				# Return the error idendifier. Apple ignores all the ids sent after the error identifier
-				errIdentifier = checkError(apnssock)
-				if errIdentifier!=0:
-					return errIdentifier
-				
-				entry.msg_sent=True
-				entry.save()
-		except RuntimeError:
-			logger.info('APNS Connection closed Runtime Error')
-			errIdentifier = checkError(apnssock)
-			if errIdentifier!=0:
-				return errIdentifier
+			current_task.sock.apnssend(packet)
+		except:
+			current_task.sock.reconnect()
+			addFailedMsgs(identifier-1,identifier)
+			return
 
-	"""
-	Sleep few second(s) to check for any errors at the end of a transmission.
-	This wait is needed as there is a delay between the data sent and data recieved from APNS gateways
-	"""
+		errIdentifier = checkError(current_task.sock)
+		logger.info('Error:'+ str(errIdentifier))
+		if errIdentifier != 0:
+			current_task.sock.reconnect()
+			addFailedMsgs(errIdentifier,identifier)
+			return
 
-	timespent = 0
-	while timespent < TOTAL_GATEWAY_WAIT_TIME:
-		errIdentifier = checkError(apnssock)
-		if errIdentifier!=0:
-			logger.info('Delayed Error')
-			return errIdentifier
 
-		time.sleep(GATEWAY_WAIT_TIME)
-		timespent = timespent + GATEWAY_WAIT_TIME
-
-	return msgqueueIdPushed
+# Re add msgs to pre task queue for failed messages
+def addFailedMsgs(frommsgId,toId):
+	fromId = PreTaskQueue.objects.filter(msgidentifier=frommsgId).order_by('-id')[0].id
+	logger.info('Re-Task: %d to %d ' % (fromId,toId))
+	ptqueue = PreTaskQueue.objects.all().filter(id__gt=fromId,id__lte=toId).order_by('id')
+	with transaction.commit_on_success():
+		tasklist=[]
+		for ptentry in ptqueue:
+			pt = PreTaskQueue(packet=ptentry.packet,msgidentifier=ptentry.msgidentifier,pickedup=True)
+			pt.save()
+			tasklist.append((binascii.unhexlify(ptentry.packet),pt.id))
+		# map tasks together. Celery executes mapped tasks sequentially with the same worker.
+		pushapnspacket.map(tasklist).delay()
 
 def checkError(apnssock):
 	err = apnssock.apnsreceive()
@@ -131,16 +87,16 @@ def checkError(apnssock):
 	return errIdentifier
 
 # Schedule queryfeedback dailiy to get the list of device tokens that is expired.
-@task(name='Query APNS Feedback')
-def queryfeedback():
-	return
-	logger.info('Running Feedback Task:' + str(current_task.request.id))
-	apnssock = APNSSocket()
-	apnssock.connect(APNS_FEEDBACK_SANDBOX)
-	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
-	while msg:
-		logger.info('Feedback Msg received' + msg)
-		msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+# @task(name='Query APNS Feedback')
+# def queryfeedback():
+# 	return
+# 	logger.info('Running Feedback Task:' + str(current_task.request.id))
+# 	apnssock = APNSSocket()
+# 	apnssock.connect(APNS_FEEDBACK_SANDBOX)
+# 	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+# 	while msg:
+# 		logger.info('Feedback Msg received' + msg)
+# 		msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
 		# if msg:
 		# 	expired_time = msg[0:4]
 		# 	token_length = msg[5:6]

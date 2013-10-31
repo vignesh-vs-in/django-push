@@ -1,5 +1,8 @@
 from django.contrib import admin
-from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue
+from apns.models import APNSToken,APNSAlert,APNSAPSPayload,APNSMessage,APNSData1,MsgQueue,PreTaskQueue
+from django.db import transaction
+from apns import tasks
+import binascii
 
 class APNSMessageAdmin(admin.ModelAdmin):
 	list_display = ['message_ref', 'apns_data_type']
@@ -8,10 +11,24 @@ class APNSMessageAdmin(admin.ModelAdmin):
 
 	def push_to_all(self, request, queryset):
 		tokenlist = APNSToken.objects.all().filter(expired=False)
-		for msg in queryset:
-			for token in tokenlist:
-				MsgQueue(apnstoken=token,apnsmessage=msg).save()
-		self.message_user(request, "%s message(s) to %s token(s) successfully added to MsgQueue." % (len(queryset) , len(tokenlist)))
+
+		with transaction.commit_on_success():
+			tasklist=[]
+			for msg in queryset:
+				for token in tokenlist:
+					# Add to Msg queue
+					entry = MsgQueue(apnstoken=token,apnsmessage=msg)
+					entry.save()
+					# Add to PreTaskQueue
+
+					ptentry = PreTaskQueue(packet=binascii.hexlify(entry.to_packet()),msgidentifier=entry.id,pickedup=True)
+					ptentry.save()
+					tasklist.append((entry.to_packet(),ptentry.id))
+
+			# Add to Task Queue by mapping tasks together. Celery executes mapped tasks sequentially with the same worker.
+			tasks.pushapnspacket.map(tasklist).delay()
+
+			self.message_user(request, "%s message(s) to %s token(s) successfully added to MsgQueue." % (len(queryset) , len(tokenlist)))
 
 	push_to_all.short_description = "Push notification to all tokens"
 
@@ -27,8 +44,12 @@ class APNSAlertAdmin(admin.ModelAdmin):
 	list_display = ['body','has_data']
 	ordering = ['-id']
 
+class PreTaskQueueAdmin(admin.ModelAdmin):
+	list_display = ['id','msgidentifier','pickedup']
+	ordering = ['-id']
+
 class MsgQueueAdmin(admin.ModelAdmin):
-	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent','error' ,'pickedup' ,'task']
+	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent','error' ,'pickedup']
 	ordering = ['-id']
 	actions = ['update_sent_false','update_sent_true']
 
@@ -46,3 +67,4 @@ admin.site.register(APNSAPSPayload,APNSAPSPayloadAdmin)
 admin.site.register(APNSMessage,APNSMessageAdmin)
 admin.site.register(APNSData1)
 admin.site.register(MsgQueue,MsgQueueAdmin)
+admin.site.register(PreTaskQueue,PreTaskQueueAdmin)

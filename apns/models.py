@@ -3,6 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 import json, time, binascii, struct
 from constants import *
+from apns.BlobField import BlobField
 
 class APNSToken(models.Model):
 	token = models.CharField(max_length=64,null=False,unique=True)
@@ -68,7 +69,7 @@ class MsgQueue(models.Model):
 	error = models.CharField(max_length=255,blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	pickedup = models.BooleanField(default=False)
-	task = models.CharField(max_length=255,blank=True,null=True)
+	# task = models.CharField(max_length=255,blank=True,null=True)
 
 	def to_packet(self):
 
@@ -110,3 +111,11 @@ class MsgQueue(models.Model):
 		return self.date_inserted >= timezone.now() - datetime.timedelta(days=1)
 	def __unicode__(self):
 		return self.apnsmessage.message_ref + ":" + str(self.apnstoken.id)
+
+class PreTaskQueue(models.Model):
+	# Django 1.6 adds support to binard field
+	packet = BlobField()
+	msgidentifier = models.IntegerField(default=0)
+	pickedup = models.BooleanField(default=False)
+	msg_sent = models.BooleanField(default=False)
+	error = models.CharField(max_length=255,blank=True,null=True)

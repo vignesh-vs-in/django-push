@@ -9,16 +9,9 @@ class APNSTask(Task):
 	abstract = True
 	_sock = None
 
-	def __init__(self,gateway=None):
+	def __init__(self):
 		logger.info('Initialize APNSTask')
-		if gateway is None:
-			self.gateway = APNS_GATEWAY_SANDBOX
-		else:
-			self.gateway = gateway
-		if self._sock is None:		
-			self._sock = APNSSocket()
-			self._sock.connect(self.gateway)
-			logger.info('Connected to APNS in __init__')
+		self.gateway = APNS_GATEWAY_SANDBOX
 
 	@property
 	def sock(self):
@@ -28,8 +21,7 @@ class APNSTask(Task):
 			logger.info('Connected to APNS')
 		return self._sock
 
-	def reconnect(self):
-		self._sock.close()
-		self._sock = APNSSocket()
-		self._sock.connect(self.gateway)
-		logger.info('Re-Connected to APNS')
+	def __del__ (self):
+		logger.info('Decomposed APNSTask')
+		if self._sock is not None:
+			self._sock.close()

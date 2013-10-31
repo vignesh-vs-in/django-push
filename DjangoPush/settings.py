@@ -10,6 +10,7 @@ BROKER_URL = "amqp://guest:guest@localhost:5672//"
 # Manage scheduling from admin panel
 CELERY_RESULT_BACKEND = "database"
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
+CELERYD_CONCURRENCY = 1
 
 # GCM HTTP Settings
 GCMURL = 'https://android.googleapis.com/gcm/send'
