@@ -23,9 +23,13 @@ class APNSMessageAdmin(admin.ModelAdmin):
 
 					ptentry = PreTaskQueue(packet=binascii.hexlify(entry.to_packet()),msgidentifier=entry.id,pickedup=True)
 					ptentry.save()
-					tasklist.append((entry.to_packet(),ptentry.id))
+					tasklist.append((entry.to_packet(),ptentry.id,None))
 
 			# Add to Task Queue by mapping tasks together. Celery executes mapped tasks sequentially with the same worker.
+			if tasklist:
+				packet,ptentry,islastpacket = tasklist[-1] 
+				tasklist[-1] = packet,ptentry,True
+				
 			tasks.pushapnspacket.map(tasklist).delay()
 
 			self.message_user(request, "%s message(s) to %s token(s) successfully added to MsgQueue." % (len(queryset) , len(tokenlist)))

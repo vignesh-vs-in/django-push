@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 # ToDo Work on reporting and failures at end
 @task(name='Push APNS Packet',base=APNSTask)
-def pushapnspacket(packetNidentifier=(None,0)):
-	packet,identifier = packetNidentifier
+def pushapnspacket(packetNidentifier=(None,0,False)):
+	packet,identifier,islastpacket = packetNidentifier
 	logger.info('Running Push APNS Task: %s for id %d' % (current_task.request.id,identifier))
 	# logger.info('Req Dtl:'+str(current_task.request))
 
@@ -25,6 +25,15 @@ def pushapnspacket(packetNidentifier=(None,0)):
 			addFailedMsgs(identifier-1,identifier)
 			return
 
+		# Wait few seconds if this is a last packet in the series
+		if islastpacket:
+			waittime = 0.0
+
+			while waittime < TOTAL_GATEWAY_WAIT_TIME:
+				time.sleep(GATEWAY_WAIT_TIME)
+				waittime = waittime + GATEWAY_WAIT_TIME
+
+		# Check for error
 		errIdentifier = checkError(current_task.sock)
 		logger.info('Error:'+ str(errIdentifier))
 		if errIdentifier != 0:
@@ -34,8 +43,8 @@ def pushapnspacket(packetNidentifier=(None,0)):
 
 
 # Re add msgs to pre task queue for failed messages
-def addFailedMsgs(frommsgId,toId):
-	fromId = PreTaskQueue.objects.filter(msgidentifier=frommsgId).order_by('-id')[0].id
+def addFailedMsgs(frompcktId,toId):
+	fromId = PreTaskQueue.objects.filter(msgidentifier=frompcktId).order_by('-id')[0].id
 	logger.info('Re-Task: %d to %d ' % (fromId,toId))
 	ptqueue = PreTaskQueue.objects.all().filter(id__gt=fromId,id__lte=toId).order_by('id')
 	with transaction.commit_on_success():
@@ -43,8 +52,12 @@ def addFailedMsgs(frommsgId,toId):
 		for ptentry in ptqueue:
 			pt = PreTaskQueue(packet=ptentry.packet,msgidentifier=ptentry.msgidentifier,pickedup=True)
 			pt.save()
-			tasklist.append((binascii.unhexlify(ptentry.packet),pt.id))
+			tasklist.append((binascii.unhexlify(ptentry.packet),pt.id,None))
 		# map tasks together. Celery executes mapped tasks sequentially with the same worker.
+		if tasklist:
+			packet,ptentry,islastpacket = tasklist[-1] 
+			tasklist[-1] = packet,ptentry,True
+
 		pushapnspacket.map(tasklist).delay()
 
 def checkError(apnssock):
@@ -55,7 +68,7 @@ def checkError(apnssock):
 		errCommand = int(binascii.hexlify(err[0]),16)
 		errCode = int(binascii.hexlify(err[1]),16)
 		errIdentifier = int(binascii.hexlify(err[2:]),16)
-		logger.info('Error message received for ID: %d' %(errIdentifier))
+		logger.info('Error message received for Packet ID: %d' %(errIdentifier))
 		errMsg  = MsgQueue.objects.get(id=errIdentifier)
 
 		if errCode == 0:
