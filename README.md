@@ -55,11 +55,11 @@ Set your AUTHORIZATION_KEY in settings.py.
 Additional Notes
 ================
 
-Run Celery tasks with beat option.
+Start Celery worker with.
 
-	python manage.py celery worker -B
+	python manage.py celery worker -n worker1
 
-Crontabs or task intervals can be configured from admin panel.
+DjangoPush supports multiple workers running simultaneously.
 
 License
 =======
