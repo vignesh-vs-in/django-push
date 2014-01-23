@@ -27,6 +27,7 @@ class APNSMessageAdmin(admin.ModelAdmin):
 
 			# Add to Task Queue by mapping tasks together. Celery executes mapped tasks sequentially with the same worker.
 			if tasklist:
+				# Mark the last packet in the queue
 				packet,ptentry,islastpacket = tasklist[-1] 
 				tasklist[-1] = packet,ptentry,True
 				

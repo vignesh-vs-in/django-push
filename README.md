@@ -1,7 +1,7 @@
 Django Push
 ===========
 
-Django Push is a Push notification server enabled for APNS and GCM.
+Django Push is a Push notification server enabled for both APNS and GCM.
 
 Prerequisite
 ============
@@ -26,6 +26,16 @@ Setup
 =====
 
 1) [Install Celery and RabbitMQ]. Django push uses celery for running async jobs.
+
+2) Start RabbitMQ 
+
+	sudo rabbitmq-server -detached
+
+3) Start Celery worker
+
+	python manage.py celery worker -n worker1
+
+DjangoPush supports multiple workers running simultaneously. A single worker can push both GCM and APNS message.
 
 APNS Setup
 ==========
@@ -52,14 +62,6 @@ GCM Setup
 
 Set your AUTHORIZATION_KEY in settings.py.
 
-Additional Notes
-================
-
-Start Celery worker with.
-
-	python manage.py celery worker -n worker1
-
-DjangoPush supports multiple workers running simultaneously.
 
 License
 =======

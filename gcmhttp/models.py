@@ -81,6 +81,7 @@ class MsgQueue(models.Model):
 	gcuser = models.ForeignKey(GCUser)
 	gcmessage = models.ForeignKey(GCMessage)
 	msg_sent = models.BooleanField(default=False)
+	series_id = models.IntegerField(null=False)
 	message_id = models.CharField(max_length=255,blank=True,null=True)
 	registration_id = models.CharField(max_length=255,blank=True,null=True)
 	error = models.CharField(max_length=255,blank=True,null=True)
