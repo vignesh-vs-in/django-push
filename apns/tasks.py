@@ -6,18 +6,20 @@ from django.db import transaction
 from django.conf import settings
 from celery import Celery, task, current_task
 from apns.constants import *
+import time, binascii
 
 logger = logging.getLogger(__name__)
 
 # ToDo Work on reporting and failures at end
 @task(name='Push APNS Packet',base=APNSTask)
 def pushapnspacket(packetNidentifier=(None,0,False)):
+	# identifier is ID field of Pre Tasl Queue
 	packet,identifier,islastpacket = packetNidentifier
-	logger.info('Running Push APNS Task: %s for id %d' % (current_task.request.id,identifier))
+	logger.info('Pushing APNS for id %d' % (identifier))
 	# logger.info('Req Dtl:'+str(current_task.request))
 
 	if packet is not None:
-		logger.info('Packet None')
+
 		try:
 			current_task.sock.apnssend(packet)
 		except:
@@ -25,7 +27,7 @@ def pushapnspacket(packetNidentifier=(None,0,False)):
 			addFailedMsgs(identifier-1,identifier)
 			return
 
-		# Wait few seconds if this is a last packet in the series
+		# Wait few seconds to receive any errors if this is a last packet in the series
 		if islastpacket:
 			waittime = 0.0
 
@@ -44,6 +46,9 @@ def pushapnspacket(packetNidentifier=(None,0,False)):
 
 # Re add msgs to pre task queue for failed messages
 def addFailedMsgs(frompcktId,toId):
+	# Get the begining ID from which APNS push should be rescheduled.
+	# frompcktId gives the id field from MsgQueue. Below line converts frompcktId of MSgQueue to ID on PreTaskQueue.
+	# This step is needed to eliminate duplicate entries in MsgQueue. Each failed APNS packet is re-added to PreTaskQueue and in-turn Celery Task list. 
 	fromId = PreTaskQueue.objects.filter(msgidentifier=frompcktId).order_by('-id')[0].id
 	logger.info('Re-Task: %d to %d ' % (fromId,toId))
 	ptqueue = PreTaskQueue.objects.all().filter(id__gt=fromId,id__lte=toId).order_by('id')
@@ -57,7 +62,7 @@ def addFailedMsgs(frompcktId,toId):
 		if tasklist:
 			packet,ptentry,islastpacket = tasklist[-1] 
 			tasklist[-1] = packet,ptentry,True
-
+		# re-add failed APNS packets to Celery task list
 		pushapnspacket.map(tasklist).delay()
 
 def checkError(apnssock):
@@ -99,18 +104,19 @@ def checkError(apnssock):
 
 	return errIdentifier
 
-# Schedule queryfeedback dailiy to get the list of device tokens that is expired.
-# @task(name='Query APNS Feedback')
-# def queryfeedback():
-# 	return
-# 	logger.info('Running Feedback Task:' + str(current_task.request.id))
-# 	apnssock = APNSSocket()
-# 	apnssock.connect(APNS_FEEDBACK_SANDBOX)
-# 	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
-# 	while msg:
-# 		logger.info('Feedback Msg received' + msg)
-# 		msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
-		# if msg:
-		# 	expired_time = msg[0:4]
-		# 	token_length = msg[5:6]
-		# 	token = [7:]
+# Schedule queryfeedback dailiy to get the list of expired device tokens.
+@task(name='Query APNS Feedback')
+def queryfeedback():
+	logger.info('Running Feedback Task:' + str(current_task.request.id))
+	apnssock = APNSSocket()
+	apnssock.connect(APNS_FEEDBACK_SANDBOX)
+	msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+	while msg:
+		logger.info('Feedback Msg received' + str(msg))
+		msg = apnssock.apnsreceive(FEEDBACK_LENGTH)
+		if msg:
+			expired_time = msg[0:4]
+			token_length = msg[4:6]
+			token = msg[6:]
+			logger.info('Removed Token ' + str(binascii.hexlify(token)))
+	return

@@ -26,7 +26,8 @@ class GCMessage(models.Model):
 		data_dict = {}
 		if self.has_data:
 			payloaddata = self.gcm_data.to_dict()
-			data_dict.update({DATA:payloaddata})
+			# Append 'DATA.' as per GCM guidelines. Refer http://developer.android.com/google/gcm/server.html 
+			data_dict.update({DATA+self.gcm_data.data_key():payloaddata})
 
 		if self.collapse_key:
 			data_dict.update({COLLAPSE_KEY:self.collapse_key})
@@ -61,6 +62,8 @@ class GCMData1(models.Model):
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return self.payload_text
+	def data_key(self):
+		return 'data1'
 	def to_dict(self):
 		data_dict = {"payload_text":self.payload_text}
 		return data_dict
@@ -73,6 +76,8 @@ class GCMData2(models.Model):
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def __unicode__(self):
 		return self.value+" : "+self.func
+	def data_key(self):
+		return 'data2'
 	def to_dict(self):
 		data_dict = {"value":self.value,"func":self.func}
 		return data_dict

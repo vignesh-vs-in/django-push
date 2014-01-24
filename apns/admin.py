@@ -54,7 +54,7 @@ class PreTaskQueueAdmin(admin.ModelAdmin):
 	ordering = ['-id']
 
 class MsgQueueAdmin(admin.ModelAdmin):
-	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent','error' ,'pickedup']
+	list_display = ['id','apnstoken', 'apnsmessage' ,'msg_sent','error']
 	ordering = ['-id']
 	actions = ['update_sent_false','update_sent_true']
 

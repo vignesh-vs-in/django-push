@@ -22,6 +22,9 @@ class APNSAlert(models.Model):
 	loc_key = models.CharField(max_length=255,null=True,blank=True)
 	loc_args = models.CharField(max_length=255,null=True,blank=True)
 	launch_image = models.CharField(max_length=255,null=True,blank=True)
+	def to_dict(self):
+		data_dict = {"body":self.body}
+		return data_dict
 	def __unicode__(self):
 		return self.body
 		
@@ -33,7 +36,7 @@ class APNSAPSPayload(models.Model):
 	content_available = models.IntegerField(default=0)
 	date_inserted = models.DateTimeField(auto_now_add=True)
 	def to_dict(self):
-		data_dict = {"aps":{"alert":self.alert.body}}
+		data_dict = {"aps":{"alert":self.alert.to_dict(),"badge":self.badge,"sound":self.sound}}
 		return data_dict
 	def __unicode__(self):
 		return self.payload_ref
@@ -68,7 +71,6 @@ class MsgQueue(models.Model):
 	msg_sent = models.BooleanField(default=False)
 	error = models.CharField(max_length=255,blank=True,null=True)
 	date_inserted = models.DateTimeField(auto_now_add=True)
-	pickedup = models.BooleanField(default=False)
 	# task = models.CharField(max_length=255,blank=True,null=True)
 
 	def to_packet(self):
